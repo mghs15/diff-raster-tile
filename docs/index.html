@@ -39,15 +39,18 @@ body { margin:0; padding:0;}
 #alert {
   position: relative;
   z-index: 999999;
-  width: 300px;
+  width: 250px;
   border: solid 4px #111;
   border-radius: 4px;
   background: #FFF;
-  padding: 1em;
-  margin: 2em;
+  padding: 0.5em;
+  margin: 0.5em;
   text-align: center;
 }
 
+#bh, #dh {
+  width: 3em;
+}
 </style>
 
 </head>
@@ -55,17 +58,94 @@ body { margin:0; padding:0;}
 
 <div id="map"></div>
 <div id="alert">
-  <span style="font-weight:bold;">注意事項</span><hr>
+  <input type="checkbox" checked onchange="closeAlertWindow();"><span style="font-weight:bold;">操作</span><hr>
   
+  <div id="alert-content">
   試験中です。
+  <br>
+  
+  <label for="data-select">種別：</label>
+  <select name="data-select" id="data-select" onchange="setDiffSetting();">
+    <option value="01_flood_l2_shinsuishin">浸水深</option>
+    <option value="01_flood_l2_keizoku">浸水継続</option>
+  </select>
   
   <br>
   
-  <button onclick='switchDiff();'>差分</button>
-  <button onclick='switchTargetRaster();'>対象ラスタ</button>
-  <button onclick='switchBaseRaster();'>基準ラスタ</button>
+  <label for="target-select">対象レイヤ：</label>
+  <select name="target-select" id="target-select" onchange="setDiffSetting();">
+    <option value="_kuni_data">国管理</option>
+    <option value="_pref_data/01">北海道</option>
+    <option value="_pref_data/02">青森県</option>
+    <option value="_pref_data/03">岩手県</option>
+    <option value="_pref_data/04">宮城県</option>
+    <option value="_pref_data/05">秋田県</option>
+    <option value="_pref_data/06">山形県</option>
+    <option value="_pref_data/07">福島県</option>
+    <option value="_pref_data/08">茨城県</option>
+    <option value="_pref_data/09">栃木県</option>
+    <option value="_pref_data/10">群馬県</option>
+    <option value="_pref_data/11">埼玉県</option>
+    <option value="_pref_data/12">千葉県</option>
+    <option value="_pref_data/13">東京都</option>
+    <option value="_pref_data/14">神奈川県</option>
+    <option value="_pref_data/15">新潟県</option>
+    <option value="_pref_data/16">富山県</option>
+    <option value="_pref_data/17">石川県</option>
+    <option value="_pref_data/18">福井県</option>
+    <option value="_pref_data/19">山梨県</option>
+    <option value="_pref_data/20">長野県</option>
+    <option value="_pref_data/21">岐阜県</option>
+    <option value="_pref_data/22">静岡県</option>
+    <option value="_pref_data/23">愛知県</option>
+    <option value="_pref_data/24">三重県</option>
+    <option value="_pref_data/25">滋賀県</option>
+    <option value="_pref_data/26">京都府</option>
+    <option value="_pref_data/27">大阪府</option>
+    <option value="_pref_data/28">兵庫県</option>
+    <option value="_pref_data/29">奈良県</option>
+    <option value="_pref_data/30">和歌山県</option>
+    <option value="_pref_data/31">鳥取県</option>
+    <option value="_pref_data/32">島根県</option>
+    <option value="_pref_data/33">岡山県</option>
+    <option value="_pref_data/34">広島県</option>
+    <option value="_pref_data/35">山口県</option>
+    <option value="_pref_data/36">徳島県</option>
+    <option value="_pref_data/37">香川県</option>
+    <option value="_pref_data/38">愛媛県</option>
+    <option value="_pref_data/39">高知県</option>
+    <option value="_pref_data/40">福岡県</option>
+    <option value="_pref_data/41">佐賀県</option>
+    <option value="_pref_data/42">長崎県</option>
+    <option value="_pref_data/43">熊本県</option>
+    <option value="_pref_data/44">大分県</option>
+    <option value="_pref_data/45">宮崎県</option>
+    <option value="_pref_data/46">鹿児島県</option>
+    <option value="_pref_data/47">沖縄県</option>
+  </select>
+
+  <br><br>
   
+  <input type="checkbox" id="switchDiff" onchange="switchDiff();">差分
+  <br>
+  <span style="color:rgb(0,0,255);">青</span>：基準＞対象
+  <br>
+  <span style="color:rgb(255,0,0);">赤</span>：基準＜対象
+  
+  <br>
+    
+  <input type="checkbox" id="switchTargetRaster" onchange="switchTargetRaster();">対象ラスタ
+  <input type="checkbox" id="switchBaseRaster" onchange="switchBaseRaster();">基準ラスタ
+  
+  
+  <hr>
+  <input type="checkbox" id="setDemTileLayer" onchange="setDemTileLayer();">DEM <br>
+  標高：<input type="number" id="bh" onchange="changeTileLayerSetting();" value="10"> m ;<br>
+  幅：<input type="number" id="dh" onchange="changeTileLayerSetting();" min="1" value="10"> m 
+  <!--
   <hr><button onclick="closeAlertWindow();">閉じる</button>
+  -->
+  </div>
 </div>
 
 <script>
@@ -87,22 +167,40 @@ map.addControl(new maplibregl.ScaleControl() );
 map.showTileBoundaries = true;
 
 map.on('load', () => {
-  setOverlayStyles();
+  setDiffSetting();
 });
 
 
 const closeAlertWindow = () => {
-  document.getElementById("alert").style.display = "none";
+  const disp = document.getElementById("alert-content").style.display;
+  if(disp == "none"){
+    document.getElementById("alert-content").style.display = "";
+  }else{
+    document.getElementById("alert-content").style.display = "none";
+  }
 }
 
 /**************************************************/
 /* ラスタタイル 差分比較関係                      */
 /**************************************************/
 
+// タイル設定
 
 //const tileUrl = "https://disaportaldata.gsi.go.jp/raster/01_flood_l2_shinsuishin_data/{z}/{x}/{y}.png";
-const tileUrl = "https://disaportaldata.gsi.go.jp/raster/01_flood_l2_keizoku_data/{z}/{x}/{y}.png";
-const targetTileUrl = tileUrl.replace('_data', '_kuni_data');
+let tileUrl = "https://disaportaldata.gsi.go.jp/raster/01_flood_l2_keizoku_data/{z}/{x}/{y}.png";
+let targetTileUrl = tileUrl.replace('_data', '_kuni_data');
+
+const setDiffSetting = () => {
+  
+  const d = document.getElementById("data-select").value;
+  const k = document.getElementById("target-select").value;
+  
+  tileUrl = `https://disaportaldata.gsi.go.jp/raster/${d}_data/{z}/{x}/{y}.png`;
+  targetTileUrl = `https://disaportaldata.gsi.go.jp/raster/${d}${k}/{z}/{x}/{y}.png`;
+  setOverlayStyles();
+}
+
+// メイン関数群
 
 const getRasterTile = (url) => {
 
@@ -247,6 +345,8 @@ maplibregl.addProtocol('diff', async (params, abortController) => {
   
 });
 
+// レイヤ設定
+
 const setOverlayStyles = () => {
 
   if(map.getLayer("base")){
@@ -293,6 +393,9 @@ const setOverlayStyles = () => {
     "source": "target",
     "paint":{
       "raster-opacity": 0.5
+    },
+    "layout":{
+      "visibility": "none"
     }
   });
  
@@ -315,18 +418,28 @@ const setOverlayStyles = () => {
     "source": "diff",
     "paint":{
       "raster-opacity": 1
+    },
+    "layout":{
+      "visibility": "none"
     }
   });
-
+  
+  switchDiff();
+  switchBaseRaster();
+  switchTargetRaster();
+  
 }
+
+// 表示・非表示
 
 const switchDiff = () => {
   const style = map.getStyle();
   const layers = style.layers;
+  const checked = document.getElementById("switchDiff").checked;
   layers.forEach( layer => {
     if(layer.source == "diff"){
       if(!layer.layout) layer.layout ={};
-      if(layer.layout.visibility == "none"){
+      if(checked){
         map.setLayoutProperty(layer.id, "visibility", "visible");
       }else{
         map.setLayoutProperty(layer.id, "visibility", "none");
@@ -338,10 +451,11 @@ const switchDiff = () => {
 const switchBaseRaster = () => {
   const style = map.getStyle();
   const layers = style.layers;
+  const checked = document.getElementById("switchBaseRaster").checked;
   layers.forEach( layer => {
     if(layer.source == "base"){
       if(!layer.layout) layer.layout ={};
-      if(layer.layout.visibility == "none"){
+      if(checked){
         map.setLayoutProperty(layer.id, "visibility", "visible");
       }else{
         map.setLayoutProperty(layer.id, "visibility", "none");
@@ -353,16 +467,175 @@ const switchBaseRaster = () => {
 const switchTargetRaster = () => {
   const style = map.getStyle();
   const layers = style.layers;
+  const checked = document.getElementById("switchTargetRaster").checked;
   layers.forEach( layer => {
     if(layer.source == "target"){
       if(!layer.layout) layer.layout ={};
-      if(layer.layout.visibility == "none"){
+      if(checked){
         map.setLayoutProperty(layer.id, "visibility", "visible");
       }else{
         map.setLayoutProperty(layer.id, "visibility", "none");
       }
     }
   });
+}
+
+
+/**************************************************/
+/* 標高タイル 色標高図関係                        */
+/**************************************************/
+
+// 基準とする標高
+let bh = 10;
+// 色塗りする標高の幅
+let dh = 10;
+
+const getGsiDemTile = (url) => {
+
+  return new Promise((resolve, reject) => {
+    const img = new Image(); 
+    img.crossOrigin = "Anonymous";
+    
+    img.onload = () => {
+      const _canvas = document.createElement("canvas");
+      _canvas.width = 256;
+      _canvas.height = 256;
+      const ctx = _canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, 256, 256);
+      //console.log(imgData);
+      resolve(imgData);
+    }
+    
+    /*
+    img.onerror = () => {
+      reject();
+    }
+    */
+    
+    img.src = url;
+  });
+}
+
+const convertDemRgb = (r, g, b, a) => {
+
+  const pow2_8 = Math.pow(2, 8);
+  const pow2_16 = Math.pow(2, 16);
+  const pow2_23 = Math.pow(2, 23);
+  const pow2_24 = Math.pow(2, 24);
+
+  let h = 0;
+
+  if (r != 128 || g != 0 || b != 0) {
+    const d = r * pow2_16 + g * pow2_8 + b;
+    h = (d < pow2_23) ? d : d - pow2_24;
+    if (h == -pow2_23) h = 0;
+    else h *= 0.01;
+    h = Math.floor(h * 100)/100;
+  }else {
+    // h = 0;
+  }
+  
+  return h;
+}
+
+const processDemTile = async (params) => {
+
+  const url1 = params.url.replace('gsidem://', '');
+  
+  const imageData1 = await getRasterTile(url1);
+  
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  
+  const context = canvas.getContext('2d');
+  contextfillStyle = "rgba(0 255 0 0)";
+  const imageData = context.getImageData(0, 0, 256, 256);
+  
+  //console.log(imageData);
+  
+  for (let i = 0; i < imageData.data.length / 4; i++) {
+    const h = convertDemRgb(
+      imageData1.data[i * 4]    ,
+      imageData1.data[i * 4 + 1],
+      imageData1.data[i * 4 + 2],
+      imageData1.data[i * 4 + 3]
+    );
+    
+    //console.log(v1, v2);
+    if( bh < h && h < bh + dh ){
+      imageData.data[i * 4]     = 255;
+      imageData.data[i * 4 + 1] = 0;
+      imageData.data[i * 4 + 2] = 0;
+      imageData.data[i * 4 + 3] = 255;
+    } else {
+      imageData.data[i * 4]     = 0;
+      imageData.data[i * 4 + 1] = 0;
+      imageData.data[i * 4 + 2] = 0;
+      imageData.data[i * 4 + 3] = 0;
+    }
+  }
+  
+  context.putImageData(imageData, 0, 0);
+  
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsArrayBuffer(blob);
+    }, "image/png");
+  });
+
+}
+
+
+maplibregl.addProtocol('gsidem', async (params, abortController) => {
+
+  const arrayBuffer = await processDemTile(params)
+    .then((arrayBuffer) => {
+      return arrayBuffer;
+    })
+  
+  return {data: arrayBuffer}
+  
+});
+
+
+const setDemTileLayer = () => {
+ 
+  if(map.getLayer("gsidem")){
+    map.removeLayer("gsidem");
+    map.removeSource("gsidem");
+  }
+  
+  const checked = document.getElementById("setDemTileLayer").checked;
+  if(!checked) return;
+  
+  map.addSource("gsidem", {
+    "type": "raster",
+    "minzoom":2,
+    "maxzoom":17,
+    "tiles":["gsidem://https://cyberjapandata.gsi.go.jp/xyz/dem_png/{z}/{x}/{y}.png"],
+    "tileSize": 256,
+    "attribution":"<a href='https://disaportal.gsi.go.jp/hazardmapportal/hazardmap/copyright/opendata.html' target='_blank'>重ねるハザードマップ</a>"
+  });
+  map.addLayer({ 
+    "id":"gsidem",
+    "type": "raster",
+    "source": "gsidem",
+    "paint":{
+      "raster-opacity": 0.8
+    }
+  });
+
+}
+
+const changeTileLayerSetting = () => {
+  bh = +document.getElementById("bh").value;
+  dh = +document.getElementById("dh").value;
+  if(dh < 1) dh = 1;
+  setDemTileLayer();
 }
 
 </script>
