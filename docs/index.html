@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8' />
+<title>ラスタタイル差分比較</title>
+<meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+
+<script src="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<script src='https://unpkg.com/pmtiles@3.0/dist/pmtiles.js'></script>
+
+<script>
+
+
+</script>
+
+<style>
+body { margin:0; padding:0;}
+
+
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0px;
+  width: 100%;
+}
+
+#menu {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,12em);
+  position: relative;
+  z-index: 100000;
+  padding: 5px 20px ;
+  margin: 0 0;
+  box-shadow: 0px 0px 0px 0px #eeeeee;
+  font-family: 'Open Sans', sans-serif;
+}
+
+#alert {
+  position: relative;
+  z-index: 999999;
+  width: 300px;
+  border: solid 4px #111;
+  border-radius: 4px;
+  background: #FFF;
+  padding: 1em;
+  margin: 2em;
+  text-align: center;
+}
+
+</style>
+
+</head>
+<body>
+
+<div id="map"></div>
+<div id="alert">
+  <span style="font-weight:bold;">注意事項</span><hr>
+  
+  試験中です。
+  
+  <hr><button onclick="closeAlertWindow();">閉じる</button>
+</div>
+
+<script>
+let protocol = new pmtiles.Protocol();
+maplibregl.addProtocol("pmtiles", protocol.tile);
+
+const map = new maplibregl.Map({
+  container: 'map',
+  hash: true,
+  style: 'https://mghs15.github.io/styling-tools-for-gsi-optbv/mono.json', 
+  center: [135, 35], // starting position [lng, lat]
+  minZoom: 0,
+  zoom: 9 // starting zoom
+});
+
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+map.addControl(new maplibregl.ScaleControl() );
+
+map.showTileBoundaries = true;
+
+map.on('load', () => {
+  setOverlayStyles();
+});
+
+
+const closeAlertWindow = () => {
+  document.getElementById("alert").style.display = "none";
+}
+
+/**************************************************/
+/* ラスタタイル 差分比較関係                      */
+/**************************************************/
+
+const getRasterTile = (url) => {
+
+  return new Promise((resolve, reject) => {
+    const img = new Image(); 
+    img.crossOrigin = "Anonymous";
+    
+    img.onload = () => {
+      const _canvas = document.createElement("canvas");
+      _canvas.width = 256;
+      _canvas.height = 256;
+      const ctx = _canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, 256, 256);
+      //console.log(imgData);
+      resolve(imgData);
+    }
+    
+    img.onerror = () => {
+      const _canvas = document.createElement("canvas");
+      _canvas.width = 256;
+      _canvas.height = 256;
+      const ctx = _canvas.getContext("2d");
+      ctx.fillStyle = "rgba(0, 0, 0, 0)";
+      const imgData = ctx.getImageData(0, 0, 256, 256);
+      //console.log(imgData);
+      resolve(imgData);
+    }
+    
+    img.src = url;
+  });
+}
+
+const convertColor = (r, g, b, a) => {
+  // 洪水浸水想定区域（想定最大規模）
+  const shinsuiColorTable = [
+    { r:255, g:255, b:179, rank: 1 , note:"0.3m 未満"     },
+    { r:247, g:245, b:169, rank: 2 , note:"0.5m 未満"     },
+    { r:248, g:225, b:166, rank: 3 , note:"0.5m ～ 1.0m"  },
+    { r:255, g:216, b:192, rank: 4 , note:"0.5m ～ 3.0m"  },
+    { r:255, g:183, b:183, rank: 5 , note:"3.0m ～ 5.0m"  },
+    { r:255, g:145, b:145, rank: 6 , note:"5.0m ～ 10.0m" },
+    { r:242, g:133, b:201, rank: 7 , note:"10.0m ～ 20.0m"},
+    { r:220, g:122, b:220, rank: 8 , note:"20.0m 以上"    },
+    { r:160, g:210, b:255, rank:11 , note:"12時間未満" },  
+    { r:0,   g:65,  b:255, rank:12 , note:"12時間 ～ 1日未満" },    
+    { r:250, g:245, b:0  , rank:13 , note:"1日 ～ 3日未満" },    
+    { r:255, g:153, b:0  , rank:14 , note:"3日 ～ 1週間未満" },   
+    { r:255, g:40,  b:0  , rank:15 , note:"1週間 ～ 2週間未満" },  
+    { r:180, g:0,   b:104, rank:16 , note:"2週間以上" },  
+    { r:96,  g:0,   b:96 , rank:17 , note:"4週間以上" }       
+  ];
+  
+  if(a < 1) return -1;
+  
+  shinsuiColorTable.forEach( t => {
+    if(t.r == r && t.g == g && t.b == b) return t.rank;
+  });
+  
+  return 999;
+}
+
+const processImage = async (params) => {
+  const url1 = params.url.replace('diff://', '');
+  const url2 = params.url.replace('diff://', '').replace('_data', '_kuni_data'); //.replace('_data', '_pref_data/25');
+  
+  console.log(url1, url2);
+  
+  const imageData1 = await getRasterTile(url1);
+  const imageData2 = await getRasterTile(url2);
+  
+  //console.log(imageData1);
+  //console.log(imageData2);
+  
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  
+  const context = canvas.getContext('2d');
+  contextfillStyle = "rgba(200 2 2 100)";
+  const imageData = context.getImageData(0, 0, 256, 256);
+  
+  //console.log(imageData);
+  
+  for (let i = 0; i < imageData.data.length / 4; i++) {
+    const v1 = convertColor(
+      imageData1.data[i * 4]    ,
+      imageData1.data[i * 4 + 1],
+      imageData1.data[i * 4 + 2],
+      imageData1.data[i * 4 + 3]
+    );
+    const v2 = convertColor(
+      imageData2.data[i * 4]    ,
+      imageData2.data[i * 4 + 1],
+      imageData2.data[i * 4 + 2],
+      imageData2.data[i * 4 + 3]
+    );
+    
+    //console.log(v1, v2);
+    if( v1 > v2 ){
+      imageData.data[i * 4]     = i % 2 ? 0: 255;
+      imageData.data[i * 4 + 1] = i % 2 ? 0: 255;
+      imageData.data[i * 4 + 2] = 255;
+      imageData.data[i * 4 + 3] = 255;
+    } else if( v1 < v2 ){
+      imageData.data[i * 4]     = 255;
+      imageData.data[i * 4 + 1] = i % 2 ? 0: 255;
+      imageData.data[i * 4 + 2] = i % 2 ? 0: 255;
+      imageData.data[i * 4 + 3] = 255;
+    } else {
+      imageData.data[i * 4]     = 0;
+      imageData.data[i * 4 + 1] = 0;
+      imageData.data[i * 4 + 2] = 0;
+      imageData.data[i * 4 + 3] = 0;
+    }
+  }
+  
+  context.putImageData(imageData, 0, 0);
+  
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsArrayBuffer(blob);
+    }, "image/png");
+  });
+
+}
+
+maplibregl.addProtocol('diff', async (params, abortController) => {
+
+  const arrayBuffer = await processImage(params)
+    .then((arrayBuffer) => {
+      return arrayBuffer;
+    })
+  
+  return {data: arrayBuffer}
+  
+});
+
+//const tileUrl = "https://disaportaldata.gsi.go.jp/raster/01_flood_l2_shinsuishin_data/{z}/{x}/{y}.png";
+const tileUrl = "	https://disaportaldata.gsi.go.jp/raster/01_flood_l2_keizoku_data/{z}/{x}/{y}.png";
+
+const setOverlayStyles = () => {
+ 
+  if(map.getLayer("diff")){
+    map.removeLayer("diff");
+    map.removeSource("diff");
+  }
+  
+  map.addSource("diff", {
+    "type": "raster",
+    "minzoom":2,
+    "maxzoom":17,
+    "tiles":["diff://" + tileUrl],
+    "tileSize": 256,
+    "attribution":"<a href='https://disaportal.gsi.go.jp/hazardmapportal/hazardmap/copyright/opendata.html' target='_blank'>重ねるハザードマップ</a>"
+  });
+  map.addLayer({ 
+    "id":"diff",
+    "type": "raster",
+    "source": "diff",
+    "paint":{
+      "raster-opacity": 1
+    }
+  });
+
+  if(map.getLayer("kuni")){
+    map.removeLayer("kuni");
+    map.removeSource("kuni");
+  }
+  
+  map.addSource("kuni", {
+    "type": "raster",
+    "minzoom":2,
+    "maxzoom":17,
+    "tiles":[tileUrl.replace('_data', '_kuni_data')],
+    "tileSize": 256,
+    "attribution":"<a href='https://disaportal.gsi.go.jp/hazardmapportal/hazardmap/copyright/opendata.html' target='_blank'>重ねるハザードマップ</a>"
+  });
+  map.addLayer({ 
+    "id":"kuni",
+    "type": "raster",
+    "source": "kuni",
+    "paint":{
+      "raster-opacity": 0.5
+    }
+  });
+}
+
+
+</script>
+
+</body>
+</html>
