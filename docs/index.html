@@ -210,12 +210,12 @@ const processImage = async (params) => {
       imageData.data[i * 4]     = i % 2 ? 0: 255;
       imageData.data[i * 4 + 1] = i % 2 ? 0: 255;
       imageData.data[i * 4 + 2] = 255;
-      imageData.data[i * 4 + 3] = i % 2 ? 255 : 0;
+      imageData.data[i * 4 + 3] = i % 4 ? 255 : 0;
     } else if( v1 < v2 ){
       imageData.data[i * 4]     = 255;
       imageData.data[i * 4 + 1] = i % 2 ? 0: 255;
       imageData.data[i * 4 + 2] = i % 2 ? 0: 255;
-      imageData.data[i * 4 + 3] = i % 2 ? 255 : 0;
+      imageData.data[i * 4 + 3] = i % 4 ? 255 : 0;
     } else {
       imageData.data[i * 4]     = 0;
       imageData.data[i * 4 + 1] = 0;
