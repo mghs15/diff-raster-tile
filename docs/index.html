@@ -565,8 +565,8 @@ const processDemTile = async (params) => {
     
     //console.log(v1, v2);
     if( bh < h && h < bh + dh ){
-      imageData.data[i * 4]     = 255;
-      imageData.data[i * 4 + 1] = 0;
+      imageData.data[i * 4]     = 0;
+      imageData.data[i * 4 + 1] = 255;
       imageData.data[i * 4 + 2] = 0;
       imageData.data[i * 4 + 3] = 255;
     } else {
@@ -615,10 +615,10 @@ const setDemTileLayer = () => {
   map.addSource("gsidem", {
     "type": "raster",
     "minzoom":2,
-    "maxzoom":17,
+    "maxzoom":14,
     "tiles":["gsidem://https://cyberjapandata.gsi.go.jp/xyz/dem_png/{z}/{x}/{y}.png"],
     "tileSize": 256,
-    "attribution":"<a href='https://disaportal.gsi.go.jp/hazardmapportal/hazardmap/copyright/opendata.html' target='_blank'>重ねるハザードマップ</a>"
+    "attribution":"<a href='https://maps.gsi.go.jp/development/ichiran.html#dem' target='_blank'>標高タイル</a>"
   });
   map.addLayer({ 
     "id":"gsidem",
