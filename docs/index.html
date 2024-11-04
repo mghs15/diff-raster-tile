@@ -224,7 +224,7 @@ const getRasterTile = (url) => {
       _canvas.width = 256;
       _canvas.height = 256;
       const ctx = _canvas.getContext("2d");
-      ctx.fillStyle = "rgba(0, 0, 0, 0)";
+      // 黒色透明（rgba=0,0,0,0）画像を返す
       const imgData = ctx.getImageData(0, 0, 256, 256);
       //console.log(imgData);
       resolve(imgData);
@@ -507,11 +507,23 @@ const getGsiDemTile = (url) => {
       resolve(imgData);
     }
     
-    /*
     img.onerror = () => {
-      reject();
+      const _canvas = document.createElement("canvas");
+      _canvas.width = 256;
+      _canvas.height = 256;
+      const ctx = _canvas.getContext("2d");
+      const imgData = ctx.createImageData(256, 256);
+
+      // 無効値（rgb=128,0,0）で塗りつぶし
+      for (let i = 0; i < imgData.data.length; i += 4) {
+        imgData.data[i] = 255;     
+        imgData.data[i + 1] = 0;   
+        imgData.data[i + 2] = 0;   
+        imgData.data[i + 3] = 255; 
+      }
+      
+      resolve(imgData);
     }
-    */
     
     img.src = url;
   });
@@ -524,7 +536,7 @@ const convertDemRgb = (r, g, b, a) => {
   const pow2_23 = Math.pow(2, 23);
   const pow2_24 = Math.pow(2, 24);
 
-  let h = 0;
+  let h;
 
   if (r != 128 || g != 0 || b != 0) {
     const d = r * pow2_16 + g * pow2_8 + b;
@@ -533,7 +545,7 @@ const convertDemRgb = (r, g, b, a) => {
     else h *= 0.01;
     h = Math.floor(h * 100)/100;
   }else {
-    // h = 0;
+    // undefined
   }
   
   return h;
@@ -543,14 +555,13 @@ const processDemTile = async (params) => {
 
   const url1 = params.url.replace('gsidem://', '');
   
-  const imageData1 = await getRasterTile(url1);
+  const imageData1 = await getGsiDemTile(url1);
   
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 256;
   
   const context = canvas.getContext('2d');
-  contextfillStyle = "rgba(0 255 0 0)";
   const imageData = context.getImageData(0, 0, 256, 256);
   
   //console.log(imageData);
